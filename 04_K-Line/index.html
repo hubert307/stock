@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>K線大師 Ultimate - 垂直感應精準版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #0b0e11; color: #eaecef; font-family: 'Inter', sans-serif; height: 100vh; overflow: hidden; }
+        .card { background-color: #161a1e; border: 1px solid #2b2f3a; }
+        .active-btn { background-color: #f0b90b !important; color: #000 !important; font-weight: bold; }
+        .interval-btn { background-color: #2b3139; color: #848e9c; border: 1px solid transparent; min-width: 60px; }
+        .interval-btn:hover { border-color: #f0b90b; color: #f0b90b; }
+        #main-container { height: calc(100vh - 40px); display: flex; flex-direction: column; }
+        #chart-zone { flex-grow: 1; min-height: 0; }
+        #loader { display: none; position: absolute; inset: 0; background: rgba(11, 17, 24, 0.9); z-index: 100; flex-direction: column; justify-content: center; align-items: center; }
+        .spinner { width: 50px; height: 50px; border: 5px solid #2b2f3a; border-top: 5px solid #f0b90b; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .no-scrollbar::-webkit-scrollbar { width: 4px; }
+        .no-scrollbar::-webkit-scrollbar-thumb { background: #2b3139; border-radius: 10px; }
+        .filter-btn { font-size: 10px; padding: 4px 8px; border-radius: 4px; transition: all 0.2s; border: 1px solid transparent; }
+    </style>
+</head>
+<body class="p-2 md:p-4">
+
+<div id="main-container" class="max-w-[1600px] mx-auto space-y-3">
+    <div class="card p-3 rounded-xl flex flex-wrap gap-4 items-center justify-between shadow-2xl shrink-0">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-bolt text-yellow-500 text-xl"></i>
+            <h1 class="text-lg font-bold tracking-tight">K線型態百科 <span class="text-yellow-500 text-[10px] bg-yellow-500/10 px-2 py-0.5 rounded ml-2">PRECISION PRO</span></h1>
+            <div class="flex gap-2 ml-4">
+                <input type="text" id="stockInput" value="2330" class="bg-[#2b3139] text-white p-2 rounded-lg w-28 text-sm outline-none focus:ring-2 focus:ring-yellow-500 uppercase font-mono border border-gray-700">
+                <button onclick="main()" class="bg-[#f0b90b] text-black px-4 py-1.5 rounded-lg text-sm font-bold hover:scale-105 transition-all shadow-lg active:scale-95">分析數據</button>
+            </div>
+        </div>
+        
+        <div id="intervalGroup" class="flex gap-1 bg-[#0b0e11] p-1 rounded-lg">
+            <button onclick="changeInterval('1m', '1d', this)" class="interval-btn px-3 py-1.5 rounded-md text-xs transition-all">當日</button>
+            <button onclick="changeInterval('1d', '1y', this)" class="interval-btn px-3 py-1.5 rounded-md text-xs transition-all">日線</button>
+            <button onclick="changeInterval('1wk', '3y', this)" class="interval-btn px-3 py-1.5 rounded-md text-xs transition-all">週線</button>
+            <button onclick="changeInterval('1mo', 'max', this)" class="interval-btn px-3 py-1.5 rounded-md text-xs transition-all active-btn">月線</button>
+            <button onclick="changeInterval('3mo', '10y', this)" class="interval-btn px-3 py-1.5 rounded-md text-xs transition-all">季線</button>
+            <button onclick="changeInterval('1mo', 'max', this)" class="interval-btn px-3 py-1.5 rounded-md text-xs transition-all">年線</button>
+        </div>
+    </div>
+
+    <div id="chart-zone" class="grid grid-cols-1 lg:grid-cols-4 gap-3">
+        <div class="card p-4 rounded-xl flex flex-col space-y-3 border-t-4 border-yellow-500 shadow-xl overflow-hidden">
+            <div class="shrink-0 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-gray-400 text-xs uppercase tracking-wider">型態偵測器</h3>
+                    <span id="matchCount" class="bg-yellow-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="toggleAllFilters(true)" class="filter-btn bg-white/5 text-white hover:bg-white/10">全選</button>
+                    <button onclick="toggleAllFilters(false)" class="filter-btn bg-white/5 text-white hover:bg-white/10">清空</button>
+                    <button onclick="toggleByType('bull')" class="filter-btn bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20">看漲</button>
+                    <button onclick="toggleByType('bear')" class="filter-btn bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20">看跌</button>
+                </div>
+                <button onclick="toggleByType('neut')" class="filter-btn bg-gray-500/10 text-gray-400 border-gray-500/20 hover:bg-gray-500/20 w-full">中性變盤</button>
+            </div>
+            <hr class="border-gray-800 shrink-0">
+            <div id="filterContainer" class="flex-grow overflow-y-auto pr-1 no-scrollbar space-y-1"></div>
+        </div>
+
+        <div class="lg:col-span-3 flex flex-col space-y-3 min-h-0">
+            <div class="card p-2 rounded-xl relative flex-grow shadow-2xl overflow-hidden">
+                <div id="loader"><div class="spinner mb-4"></div><div class="text-yellow-500 text-sm font-bold tracking-widest animate-pulse">精確校對月線垂直座標中...</div></div>
+                <div id="chart" class="h-full"></div>
+            </div>
+
+            <div id="infoPanel" class="card p-4 rounded-xl border-l-8 border-yellow-500 shadow-lg bg-[#1c2127] shrink-0 h-[110px]">
+                <h4 id="pTitle" class="font-bold text-yellow-500 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-crosshairs"></i> 實戰指引面版
+                </h4>
+                <p id="pDesc" class="text-gray-400 text-xs mt-2 leading-relaxed">
+                    請將滑鼠移動至圖表中有「型態標籤」的 K 線位置，此處將顯示對應的實戰策略。
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const PATTERN_DEFS = [
+        { id: 'hammer', name: '01. 錘頭線', type: 'bull', desc: '【看多】底部反轉：下影線需為實體的2倍以上，且上影線極短。顯示買盤強勁推升。' },
+        { id: 'inv_hammer', name: '02. 倒錘頭線', type: 'bull', desc: '【看多】底部試探：上影線需為實體的2倍以上，下影線極短。多頭嘗試攻堅。' },
+        { id: 'bull_engulf', name: '03. 多頭吞噬', type: 'bull', desc: '【強勢看多】今日紅棒實體完全覆蓋昨日黑棒實體，底部轉折極強訊號。' },
+        { id: 'morning_star', name: '04. 晨星', type: 'bull', desc: '【看多】三棒組合：長黑、跳空小K、長紅（收盤需穿透首根黑棒中值）。' },
+        { id: 'piercing', name: '05. 刺透型態', type: 'bull', desc: '【看多】紅棒低開但在收盤時收復昨日黑棒實體的50%以上，反彈力道強。' },
+        { id: 'three_soldiers', name: '06. 三白兵', type: 'bull', desc: '【極強看多】連續三根實體穩定（非十字星）的紅棒，且收盤價逐日走高。' },
+        { id: 'rising_window', name: '07. 向上跳空', type: 'bull', desc: '【看多】今日最低價高於昨日最高價，形成多頭真空缺口。' },
+        { id: 'bull_harami', name: '08. 多頭孕育', type: 'bull', desc: '【看多】長黑棒實體內包著一個完整的小紅棒實體，跌勢暫歇。' },
+        { id: 'shooting_star', name: '09. 射擊之星', type: 'bear', desc: '【看空】高檔轉折：上影線需為實體2倍以上，且發生在高位，預示動能衰退。' },
+        { id: 'hanging_man', name: '10. 吊頸線', type: 'bear', desc: '【看空】高檔出現的長下影小實體，暗示支撐已鬆動，隨時可能反轉。' },
+        { id: 'bear_engulf', name: '11. 空頭吞噬', type: 'bear', desc: '【強勢看空】今日黑棒實體完全覆蓋昨日紅棒實體，獲利了結壓力巨大。' },
+        { id: 'evening_star', name: '12. 黃昏之星', type: 'bear', desc: '【看空】三棒組合：長紅、跳空小K、長黑（收盤需低於首根紅棒中值）。' },
+        { id: 'dark_cloud', name: '13. 烏雲蓋頂', type: 'bear', desc: '【看空】黑棒高開但在收盤時跌破昨日紅棒實體的50%以下，多頭遇阻。' },
+        { id: 'three_crows', name: '14. 三隻烏鴉', type: 'bear', desc: '【極強看空】連續三根長黑棒，且收盤價皆接近當日最低價。' },
+        { id: 'falling_window', name: '15. 向下跳空', type: 'bear', desc: '【看空】今日最高價低於昨日最低價，空頭主導市場。' },
+        { id: 'doji', name: '16. 十字星', type: 'neut', desc: '【中性變盤】開盤價與收盤價極度接近（實體佔總波幅小於10%），多空交戰。' }
+    ];
+
+    let currentInterval = '1mo', currentRange = 'max', globalData = [], chartInstance = null;
+    const PROXIES = ["https://corsproxy.io/?", "https://api.allorigins.win/raw?url="];
+
+    function initUI() {
+        const container = document.getElementById('filterContainer');
+        PATTERN_DEFS.forEach(p => {
+            container.innerHTML += `
+                <div class="flex items-center gap-3 p-2 bg-[#2b3139]/20 hover:bg-[#2b3139]/40 rounded-lg transition border border-transparent" data-type="${p.type}">
+                    <input type="checkbox" id="chk-${p.id}" checked class="accent-yellow-500 w-3.5 h-3.5 cursor-pointer" onchange="updateMarkers()">
+                    <label for="chk-${p.id}" class="flex-1 cursor-pointer text-xs font-medium ${p.type === 'bull' ? 'text-emerald-400' : p.type === 'bear' ? 'text-rose-400' : 'text-gray-400'}">${p.name}</label>
+                </div>`;
+        });
+    }
+
+    function toggleAllFilters(enable) {
+        document.querySelectorAll('#filterContainer input[type="checkbox"]').forEach(cb => cb.checked = enable);
+        updateMarkers();
+    }
+
+    function toggleByType(type) {
+        document.querySelectorAll('#filterContainer input[type="checkbox"]').forEach(cb => {
+            const parent = cb.closest('[data-type]');
+            cb.checked = (parent.dataset.type === type);
+        });
+        updateMarkers();
+    }
+
+    function resetInfoPanel() {
+        document.getElementById('pTitle').innerHTML = '<i class="fa-solid fa-crosshairs"></i> 垂直精準偵測中';
+        document.getElementById('pTitle').style.color = "#f0b90b";
+        document.getElementById('pDesc').innerText = "滑鼠現在只要移動至 K 線垂直區間（包含上方標籤或下方空間），系統將精準識別型態。";
+    }
+
+    async function fetchYahooData(symbol) {
+        document.getElementById('loader').style.display = 'flex';
+        let finalSymbol = symbol.trim().toUpperCase();
+        if (/^\d{4,6}$/.test(finalSymbol)) finalSymbol += ".TW";
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${finalSymbol}?range=${currentRange}&interval=${currentInterval}`;
+        for (let proxy of PROXIES) {
+            try {
+                const res = await fetch(proxy + encodeURIComponent(url));
+                const json = await res.json();
+                const r = json.chart.result[0];
+                const q = r.indicators.quote[0];
+                const data = r.timestamp.map((t, i) => ({
+                    x: new Date(t * 1000),
+                    y: [q.open[i], q.high[i], q.low[i], q.close[i]].map(v => v ? parseFloat(v.toFixed(2)) : null)
+                })).filter(d => d.y[3] !== null);
+                document.getElementById('loader').style.display = 'none';
+                return data;
+            } catch (e) {}
+        }
+        document.getElementById('loader').style.display = 'none';
+        return null;
+    }
+
+    function updateMarkers() {
+        if (!globalData.length || !chartInstance) return;
+        const markers = [];
+        const active = Array.from(document.querySelectorAll('#filterContainer input:checked')).map(c => c.id.replace('chk-', ''));
+
+        for (let i = 2; i < globalData.length; i++) {
+            const [o, h, l, c] = globalData[i].y;
+            const [po, ph, pl, pc] = globalData[i-1].y;
+            const [p2o, p2h, p2l, p2c] = globalData[i-2].y;
+            const body = Math.abs(c - o), range = h - l, uSh = h - Math.max(o, c), lSh = Math.min(o, c) - l;
+
+            const addMarker = (label, id, type, pos) => {
+                let textColor = type === 'bull' ? '#4ade80' : type === 'bear' ? '#fb7185' : '#9ca3af';
+                let bgColor = type === 'bull' ? '#064e3b' : type === 'bear' ? '#4c0519' : '#1f2937';
+                markers.push({ x: globalData[i].x.getTime(), y: pos, label: label, id: id, textColor: textColor, bgColor: bgColor });
+            };
+
+            if (active.includes('hammer') && lSh > body * 2 && uSh < body * 0.5 && body > 0) addMarker('錘', 'hammer', 'bull', l);
+            if (active.includes('inv_hammer') && uSh > body * 2 && lSh < body * 0.5 && body > 0) addMarker('倒', 'inv_hammer', 'bull', l);
+            if (active.includes('bull_engulf') && pc < po && c > o && c >= po && o <= pc) addMarker('吞', 'bull_engulf', 'bull', l);
+            if (active.includes('morning_star') && p2c < p2o && Math.min(o,c) > Math.max(p2c,p2o) && c > o && c > (p2o+p2c)/2) addMarker('晨', 'morning_star', 'bull', l);
+            if (active.includes('piercing') && pc < po && o < pl && c > (po+pc)/2 && c < po) addMarker('刺', 'piercing', 'bull', l);
+            if (active.includes('three_soldiers') && c > o && pc > po && p2c > p2o && c > pc && pc > p2c) addMarker('兵', 'three_soldiers', 'bull', l);
+            if (active.includes('rising_window') && l > ph) addMarker('跳', 'rising_window', 'bull', l);
+            if (active.includes('bull_harami') && pc < po && c > o && c < po && o > pc) addMarker('孕', 'bull_harami', 'bull', l);
+            if (active.includes('shooting_star') && uSh > body * 2 && lSh < body * 0.5 && body > 0) addMarker('射', 'shooting_star', 'bear', h);
+            if (active.includes('hanging_man') && lSh > body * 2 && uSh < body * 0.5 && body > 0) addMarker('吊', 'hanging_man', 'bear', h);
+            if (active.includes('bear_engulf') && pc > po && c < o && c <= po && o >= pc) addMarker('吞', 'bear_engulf', 'bear', h);
+            if (active.includes('evening_star') && p2c > p2o && Math.min(o,c) < Math.min(p2c,p2o) && c < o && c < (p2o+p2c)/2) addMarker('昏', 'evening_star', 'bear', h);
+            if (active.includes('dark_cloud') && pc > po && o > ph && c < (po+pc)/2 && c > po) addMarker('雲', 'dark_cloud', 'bear', h);
+            if (active.includes('three_crows') && c < o && pc < po && p2c < p2o && c < pc && pc < p2c) addMarker('鴉', 'three_crows', 'bear', h);
+            if (active.includes('falling_window') && h < pl) addMarker('跳', 'falling_window', 'bear', h);
+            if (active.includes('doji') && body < range * 0.1) addMarker('十', 'doji', 'neut', h);
+        }
+
+        document.getElementById('matchCount').innerText = markers.length;
+        chartInstance.updateOptions({
+            annotations: {
+                points: markers.map(m => ({
+                    x: m.x, y: m.y,
+                    marker: { size: 0 },
+                    label: { 
+                        text: m.label, borderWidth: 1, borderColor: m.textColor,
+                        style: { background: m.bgColor, color: m.textColor, fontWeight: 800, padding: 3, fontSize: '11px' } 
+                    }
+                }))
+            }
+        });
+        window.activeMarkers = markers;
+    }
+
+    async function main() {
+        const symbol = document.getElementById('stockInput').value;
+        globalData = await fetchYahooData(symbol);
+        if (!globalData) return;
+
+        const options = {
+            series: [{ data: globalData }],
+            chart: { 
+                type: 'candlestick', height: '100%', foreColor: '#848e9c',
+                events: {
+                    // 升級：使用 mouseMove 進行垂直區域偵測
+                    mouseMove: (event, chartContext, config) => {
+                        // 獲取當前滑鼠位置最接近的資料索引
+                        const dataPointIndex = config.dataPointIndex;
+                        if (dataPointIndex > -1 && globalData[dataPointIndex]) {
+                            const date = globalData[dataPointIndex].x.getTime();
+                            const m = window.activeMarkers?.find(x => x.x === date);
+                            if (m) {
+                                const d = PATTERN_DEFS.find(p => p.id === m.id);
+                                document.getElementById('pTitle').innerText = d.name;
+                                document.getElementById('pDesc').innerText = d.desc;
+                                document.getElementById('pTitle').style.color = m.textColor;
+                                return;
+                            }
+                        }
+                        resetInfoPanel();
+                    }
+                }
+            },
+            plotOptions: { candlestick: { colors: { upward: '#26a69a', downward: '#ef5350' } } },
+            xaxis: { type: 'datetime' },
+            yaxis: { position: 'right', labels: { formatter: val => val ? val.toFixed(0) : '' } },
+            grid: { borderColor: '#2b2f3a', strokeDashArray: 4 },
+            tooltip: { theme: 'dark' }
+        };
+
+        if (chartInstance) chartInstance.destroy();
+        chartInstance = new ApexCharts(document.querySelector("#chart"), options);
+        await chartInstance.render();
+        updateMarkers();
+    }
+
+    function changeInterval(int, range, btn) {
+        currentInterval = int; currentRange = range;
+        document.querySelectorAll('#intervalGroup button').forEach(b => b.classList.remove('active-btn'));
+        btn.classList.add('active-btn');
+        main();
+    }
+
+    initUI(); main();
+</script>
+</body>
+</html>

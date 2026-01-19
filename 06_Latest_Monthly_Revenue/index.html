@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>台股最新營收查詢器 - 深色保護眼睛版</title>
+    <style>
+        /* 整體背景改為深色系 */
+        body { 
+            font-family: "Microsoft JhengHei", sans-serif; 
+            background-color: #1a1a1b; 
+            color: #e0e0e0; 
+            padding: 20px; 
+        }
+        
+        .dashboard { 
+            background: #2d2d2e; 
+            max-width: 680px; 
+            margin: auto; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+        }
+        
+        h2 { color: #ffffff !important; }
+
+        /* 搜尋列佈局 - 深色化 */
+        .search-bar { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 25px; 
+            background: #3d3d3f; 
+            padding: 20px; 
+            border-radius: 10px; 
+            align-items: center; 
+        }
+        
+        input { 
+            padding: 10px; 
+            border: 1px solid #4a4a4a; 
+            border-radius: 5px; 
+            flex: 1; 
+            font-size: 16px; 
+            background-color: #252526; 
+            color: #ffffff; 
+        }
+        
+        input::placeholder { color: #888; }
+        
+        /* 查詢按鈕 - 保持藍色但稍微調整對比 */
+        #query-btn { 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 10px 25px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 16px; 
+            transition: background 0.3s;
+        }
+        #query-btn:hover { background-color: #0069d9; }
+
+        /* 結果顯示區塊 */
+        .result-card { 
+            display: none; 
+            margin-top: 20px; 
+            border-top: 2px solid #3d3d3f; 
+            padding-top: 20px; 
+        }
+        .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px; }
+        
+        /* 資料方塊深色化 */
+        .info-box { 
+            background: #38383a; 
+            border: 1px solid #4a4a4a; 
+            padding: 20px; 
+            border-radius: 10px; 
+            text-align: center; 
+        }
+        
+        /* 數值樣式與顏色 (調亮以利閱讀) */
+        .val { font-size: 24px; font-weight: bold; display: block; margin: 10px 0; color: #ffffff; }
+        .up { color: #ff5252; } /* 成長 (亮紅) */
+        .down { color: #66bb6a; } /* 衰退 (亮綠) */
+        
+        /* 資料期別文字樣式 */
+        .period-text { font-size: 16px; font-weight: bold; color: #64b5f6; margin-bottom: 5px; display: block; }
+        
+        /* 警示與備註說明區 - 深色調整 */
+        .limit-warning { 
+            margin-top: 10px; 
+            padding: 12px; 
+            background: #3e2723; 
+            border: 1px solid #5d4037; 
+            border-radius: 8px; 
+            color: #ffab91; 
+            font-size: 13px; 
+            text-align: center; 
+            line-height: 1.5; 
+        }
+        
+        .note-box { 
+            margin-top: 25px; 
+            padding: 15px; 
+            background: #332b00; 
+            border-left: 5px solid #fcc419; 
+            border-radius: 5px; 
+            font-size: 14px; 
+            line-height: 1.6; 
+            color: #e0e0e0; 
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <h2 style="text-align: center;">台股最新營收監測儀</h2>
+
+    <div class="search-bar">
+        <input type="text" id="co_id" placeholder="請輸入公司代號 (例如: 2330)" value="2330" onkeydown="if(event.keyCode==13) startQuery()">
+        <button id="query-btn" onclick="startQuery()">查詢最新數據</button>
+    </div>
+
+    <div id="status" style="text-align: center; color: #aaa; font-size: 14px; margin-bottom: 10px;">請輸入代號後按下查詢按鈕</div>
+
+    <div id="result-card" class="result-card">
+        <div style="text-align: center;">
+            <div id="comp-info" style="font-size: 22px; font-weight: bold; color: #ffffff;"></div>
+        </div>
+        	
+        <br>
+		
+        <div style="text-align: center;">
+			<span id="data-period" class="period-text"></span>
+        </div>
+		
+        <div class="card-grid">
+            <div class="info-box">
+                <span style="color: #bbb;">本月營業收入</span>
+                <span id="mon-rev" class="val"></span>
+                <span id="mon-yoy" style="font-weight: bold;"></span>
+            </div>
+            
+            <div class="info-box">
+                <span style="color: #bbb;">本年累計營收</span>
+                <span id="cum-rev" class="val"></span>
+                <span id="cum-yoy" style="font-weight: bold;"></span>
+            </div>
+        </div>
+		
+        <div id="note-area" class="note-box">
+            <strong style="color: #fcc419;">📊 營收變化原因說明：</strong><br>
+            <span id="rev-note"></span>
+        </div>
+		
+        <div id="api-warning" class="limit-warning"></div>
+		
+        <p id="update-time" style="font-size: 11px; color: #777; text-align: right; margin-top: 20px;"></p>
+    </div>
+</div>
+
+<script>
+    const TARGET_API = 'https://mops.twse.com.tw/mops/api/t05st10_ifrs';
+
+    async function startQuery() {
+        const coId = document.getElementById('co_id').value.trim();
+        if (!coId) return alert("請輸入公司代號");
+
+        updateStatus("🚀 正在連線至公開資訊觀測站...");
+        
+        const noCacheTarget = `${TARGET_API}?t=${new Date().getTime()}`;
+
+        try {
+            const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(noCacheTarget)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    companyId: coId,
+                    dataType: "1",
+                    year: "", 
+                    month: "",
+                    subsidiaryCompanyId: ""
+                })
+            });
+
+            const data = await response.json();
+            renderData(data, coId); 
+        } catch (err) {
+            updateStatus("❌ 查詢失敗，請檢查網路連線", true);
+            console.error(err);
+        }
+    }
+
+    function renderData(data, searchedCoId) {
+        if (data.code === 200 && data.result && data.result.data) {
+            const res = data.result;
+            const d = res.data; 
+            
+            const finalName = res.companyAbbreviation || "未知公司";
+            const finalId = res.companyId || res.companyID || searchedCoId;
+            document.getElementById('comp-info').innerText = `${finalName} (${finalId})`;
+			           
+			const yymm = res.yymm || "未知月份";
+            document.getElementById('api-warning').innerHTML = 
+                `⚠️ 注意：本系統目前僅能提供該公司最新公布之資料 (${yymm})，歷史查詢可能受限。`;
+
+            const yearStr = yymm.substring(0, 3);
+            const monthStr = yymm.substring(3);
+            document.getElementById('data-period').innerText = `資料期別：民國 ${yearStr} 年 ${monthStr} 月`;
+
+            document.getElementById('mon-rev').innerText = `$ ${d[0][1]} 仟元`;
+            formatYoY('mon-yoy', d[3][1]); 
+
+            document.getElementById('cum-rev').innerText = `$ ${d[4][1]} 仟元`;
+            formatYoY('cum-yoy', d[7][1]); 
+
+            document.getElementById('rev-note').innerText = d[8] && d[8][1] ? d[8][1] : "該公司無特定營收原因說明。";
+
+            document.getElementById('update-time').innerText = `API 查詢時間：${data.datetime}`;
+            document.getElementById('result-card').style.display = 'block';
+            updateStatus("✅ 資料更新完成");
+        } else {
+            document.getElementById('result-card').style.display = 'none';
+            updateStatus("⚠️ 查無營收資料，請檢查代號是否有誤。", true);
+        }
+    }
+
+    function formatYoY(id, value) {
+        const el = document.getElementById(id);
+        const num = parseFloat(value.replace(/,/g, '')); 
+        
+        if (isNaN(num)) {
+            el.innerText = "YoY --";
+            el.className = "";
+        } else {
+            el.innerText = `YoY ${value}% ${num >= 0 ? '▲' : '▼'}`;
+            el.className = num >= 0 ? 'up' : 'down';
+        }
+    }
+
+    function updateStatus(text, isError = false) {
+        const s = document.getElementById('status');
+        s.innerText = text;
+        s.style.color = isError ? "#ff5252" : "#aaa";
+    }
+</script>
+
+</body>
+</html>

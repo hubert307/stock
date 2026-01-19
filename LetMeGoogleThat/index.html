@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>讓我幫你 Google 一下</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        :root {
+            --google-blue: #4285f4;
+            --google-red: #ea4335;
+            --google-yellow: #fbbc05;
+            --google-green: #34a853;
+            --gray-text: #5f6368; /* Let Me 與 That 使用的灰色 */
+            --gray-border: #dfe1e5;
+            --gray-bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Google Sans', Roboto, 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #ffffff;
+            color: #202124;
+        }
+
+        .container {
+            text-align: center;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        /* Logo 樣式 */
+        .logo {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 25px;
+            letter-spacing: -1.5px;
+            user-select: none;
+        }
+
+        /* 讓 Let Me 與 That 擁有一樣的字型與配色 */
+        .side-text {
+            color: var(--gray-text);
+            font-weight: 400; /* 稍微細一點，更顯現代感 */
+            letter-spacing: normal;
+        }
+
+        /* Google 專屬配色 */
+        .g-b { color: var(--google-blue); }
+        .g-r { color: var(--google-red); }
+        .g-y { color: var(--google-yellow); }
+        .g-g { color: var(--google-green); }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 25px;
+        }
+
+        input.text {
+            width: 100%;
+            padding: 14px 24px;
+            font-size: 16px;
+            border: 1px solid var(--gray-border);
+            border-radius: 24px;
+            outline: none;
+            transition: box-shadow 0.2s, border-color 0.2s;
+            box-sizing: border-box;
+        }
+
+        input.text:hover, input.text:focus {
+            box-shadow: 0 1px 6px rgba(32,33,36,0.28);
+            border-color: rgba(223,225,229,0);
+        }
+
+        .buttons {
+            margin-top: 10px;
+        }
+
+        input[type="button"] {
+            background-color: var(--gray-bg);
+            border: 1px solid var(--gray-bg);
+            border-radius: 4px;
+            color: #3c4043;
+            font-size: 14px;
+            margin: 6px;
+            padding: 10px 18px;
+            cursor: pointer;
+            transition: border 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="button"]:hover {
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+            border: 1px solid #dadce0;
+            background-color: #f8f9fa;
+        }
+
+        #instructions {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #e8f0fe;
+            border-radius: 8px;
+            color: #1967d2;
+            display: none;
+            font-weight: 500;
+        }
+
+        .result-area {
+            margin-top: 25px;
+            display: none;
+            padding: 20px;
+            border: 1px solid var(--gray-border);
+            border-radius: 12px;
+        }
+
+        .link-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px dashed var(--google-blue);
+            background: #f1f3f4;
+            text-align: center;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            font-family: monospace;
+            color: #1967d2;
+        }
+
+        #fake_mouse {
+            position: absolute;
+            width: 20px;
+            z-index: 100;
+            pointer-events: none;
+            display: none;
+        }
+
+        .copy-btn {
+            background: var(--google-blue);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <img id="fake_mouse" src="https://letmegooglethat.com/images/mouse_arrow.png" alt="mouse">
+
+    <div class="container">
+        <div class="logo">
+            <span class="side-text">Let Me</span>
+            <span class="g-b">G</span><span class="g-r">o</span><span class="g-y">o</span><span class="g-b">g</span><span class="g-g">l</span><span class="g-r">e</span>
+            <span class="side-text">That</span>
+        </div>
+        
+        <h2 style="font-weight: normal; font-size: 1rem; color: #5f6368; margin-bottom: 25px;">
+            讓我幫你查查 Google...
+        </h2>
+
+        <form id="search-form">
+            <div class="search-box">
+                <input id="search-input" class="text" type="text" placeholder="輸入你想問的問題..." autocomplete="off">
+            </div>
+            <div class="buttons">
+                <input id="search-btn" type="button" value="Google 搜尋">
+                <input id="lucky-btn" type="button" value="好手氣">
+            </div>
+        </form>
+
+        <div id="instructions">
+            拜託... 真的有這麼困難嗎？
+        </div>
+
+        <div class="result-area" id="result-area">
+            <p style="font-size: 0.9rem; margin-bottom: 15px;">複製下方的連結發給那個懶惰的朋友：</p>
+            <input id="url-result" class="link-input" readonly type="text">
+            <button id="copy-btn" class="copy-btn">複製連結</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $("#search-btn").click(function() {
+                var query = $("#search-input").val();
+                if (!query) return;
+
+                var protocol = window.location.protocol;
+                var host = window.location.host;
+                var path = window.location.pathname;
+                var finalUrl = protocol + "//" + host + path + "?q=" + encodeURIComponent(query);
+
+                $("#url-result").val(finalUrl);
+                $("#instructions").fadeIn();
+                $("#result-area").fadeIn();
+            });
+
+            $("#copy-btn").click(function() {
+                var copyText = document.getElementById("url-result");
+                copyText.select();
+                document.execCommand("copy");
+                
+                var originalText = $(this).text();
+                $(this).text("已複製！").css("background", "#34a853");
+                setTimeout(() => {
+                    $(this).text(originalText).css("background", "#4285f4");
+                }, 2000);
+            });
+
+            var urlParams = new URLSearchParams(window.location.search);
+            var q = urlParams.get('q');
+            if (q) {
+                runAnimation(q);
+            }
+        });
+
+        function runAnimation(query) {
+            const mouse = $("#fake_mouse");
+            const input = $("#search-input");
+            const btn = $("#search-btn");
+            
+            mouse.css({ top: '80%', left: '80%' }).show();
+            
+            mouse.animate({
+                top: input.offset().top + 20,
+                left: input.offset().left + 20
+            }, 1200, function() {
+                let i = 0;
+                let interval = setInterval(function() {
+                    input.val(query.substring(0, i + 1));
+                    i++;
+                    if (i >= query.length) {
+                        clearInterval(interval);
+                        setTimeout(function() {
+                            mouse.animate({
+                                top: btn.offset().top + 15,
+                                left: btn.offset().left + 40
+                            }, 800, function() {
+                                btn.css("background-color", "#dadce0");
+                                setTimeout(function() {
+                                    window.location.href = "https://www.google.com/search?q=" + encodeURIComponent(query);
+                                }, 400);
+                            });
+                        }, 300);
+                    }
+                }, 120);
+            });
+        }
+    </script>
+</body>
+</html>

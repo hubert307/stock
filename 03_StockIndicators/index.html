@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>專業指標看盤系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #0b0e11; color: #eaecef; font-family: 'Inter', sans-serif; height: 100vh; overflow: hidden; }
+        .card { background-color: #161a1e; border: 1px solid #2b2f3a; }
+        .active-btn { background-color: #f0b90b !important; color: #000 !important; font-weight: bold; }
+        .interval-btn { background-color: #2b3139; color: #848e9c; border: 1px solid transparent; min-width: 50px; font-size: 12px; transition: all 0.2s; }
+        .interval-btn:hover { background-color: #3e454d; }
+        #loader { display: none; position: absolute; inset: 0; background: rgba(11, 17, 24, 0.9); z-index: 100; flex-direction: column; justify-content: center; align-items: center; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #2b3139; border-top: 4px solid #f0b90b; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .config-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.03); margin-bottom: 8px; }
+        #configPanel::-webkit-scrollbar { width: 4px; }
+        #configPanel::-webkit-scrollbar-thumb { background: #3e454d; border-radius: 10px; }
+    </style>
+</head>
+<body class="p-2 md:p-4">
+
+<div class="max-w-[1600px] mx-auto flex flex-col h-full space-y-3">
+    <div class="card p-3 rounded-xl flex flex-wrap gap-4 items-center justify-between shadow-2xl">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-chart-line text-yellow-500 text-xl"></i>
+            <div class="flex gap-2">
+                <input type="text" id="stockInput" value="0050" placeholder="代號" class="bg-[#2b3139] text-white p-2 rounded-lg w-44 text-sm outline-none border border-gray-700 focus:border-yellow-500 uppercase">
+                <button onclick="main()" class="bg-[#f0b90b] text-black px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-yellow-600 transition-all">搜尋分析</button>
+            </div>
+        </div>
+        
+        <div id="intervalGroup" class="flex gap-1 bg-[#0b0e11] p-1 rounded-lg">
+            <button onclick="changeInterval('1m', '1d', this)" class="interval-btn px-3 py-1.5 rounded-md">當日</button>
+            <button onclick="changeInterval('1d', '2y', this)" class="interval-btn px-3 py-1.5 rounded-md active-btn">日線</button>
+            <button onclick="changeInterval('1wk', 'max', this)" class="interval-btn px-3 py-1.5 rounded-md">週線</button>
+            <button onclick="changeInterval('1mo', 'max', this)" class="interval-btn px-3 py-1.5 rounded-md">月線</button>
+            <button onclick="changeInterval('3mo', 'max', this)" class="interval-btn px-3 py-1.5 rounded-md">季線</button>
+            <button onclick="changeInterval('1y', 'max', this)" class="interval-btn px-3 py-1.5 rounded-md">年線</button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-3 flex-grow overflow-hidden">
+        <div id="configPanel" class="card p-4 rounded-xl flex flex-col shadow-xl overflow-y-auto">
+            <h3 class="font-bold text-gray-400 text-xs uppercase tracking-widest mb-4">策略開關</h3>
+            
+            <div class="config-item">
+                <div class="flex flex-col">
+                    <span class="text-sm font-bold text-yellow-500">箱子戰法</span>
+                    <span class="text-[10px] text-gray-500">顯示箱體對齊線</span>
+                </div>
+                <input type="checkbox" id="enableBox" checked onchange="renderChart()" class="w-5 h-5 accent-yellow-500">
+            </div>
+
+            <div class="config-item">
+                <div class="flex flex-col">
+                    <span class="text-sm font-bold text-red-500">極光線</span>
+                    <span class="text-[10px] text-gray-500">5-28週期均線組</span>
+                </div>
+                <input type="checkbox" id="enableAurora" checked onchange="renderChart()" class="w-5 h-5 accent-red-500">
+            </div>
+
+            <div class="config-item">
+                <div class="flex flex-col">
+                    <span class="text-sm font-bold text-blue-500">多方維持線</span>
+                    <span class="text-[10px] text-gray-500">20週期趨勢防線</span>
+                </div>
+                <input type="checkbox" id="enableMaint" checked onchange="renderChart()" class="w-5 h-5 accent-blue-500">
+            </div>
+
+            <div class="config-item">
+                <div class="flex flex-col">
+                    <span class="text-sm font-bold text-teal-400">HMA 費式排列</span>
+                    <span class="text-[10px] text-gray-500">5-233 週期 (青色系)</span>
+                </div>
+                <input type="checkbox" id="enableHMAFib" onchange="renderChart()" class="w-5 h-5 accent-teal-400">
+            </div>
+
+            <div class="config-item">
+                <div class="flex flex-col">
+                    <span class="text-sm font-bold text-purple-400">HMA 傳統排列</span>
+                    <span class="text-[10px] text-gray-500">5-360 週期 (紫色系)</span>
+                </div>
+                <input type="checkbox" id="enableHMATrad" onchange="renderChart()" class="w-5 h-5 accent-purple-400">
+            </div>
+
+            <div class="mt-auto p-3 bg-blue-900/10 rounded-lg text-[11px] text-blue-400">
+                <i class="fa-solid fa-circle-check mr-1"></i> 極光線 / HMA 費式排列 / HMA 傳統排列，建議一次開一個。
+            </div>
+        </div>
+
+        <div class="lg:col-span-4 relative card rounded-xl shadow-2xl overflow-hidden bg-[#161a1e]">
+            <div id="loader"><div class="spinner mb-2"></div><div class="text-yellow-500 text-xs font-bold">市場數據解析中...</div></div>
+            <div id="chart" class="h-full w-full"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentInterval = '1d', currentRange = '2y', globalData = [], chartInstance = null;
+    let indicatorData = null;
+
+    // WMA 計算：確保資料不足週期時返回 null
+    const WMA = (data, period) => {
+        let result = new Array(data.length).fill(null);
+        if (data.length < period) return result;
+        let weightSum = (period * (period + 1)) / 2;
+        for (let i = period - 1; i < data.length; i++) {
+            let sum = 0;
+            let hasNull = false;
+            for (let j = 0; j < period; j++) {
+                if (data[i - j] === null) { hasNull = true; break; }
+                sum += data[i - j] * (period - j);
+            }
+            if (!hasNull) result[i] = sum / weightSum;
+        }
+        return result;
+    };
+
+    // HMA 計算：嚴格檢查資料完整度
+    const HMA = (data, period) => {
+        let closePrices = data.map(d => d.y[3]);
+        if (closePrices.length < period) return new Array(data.length).fill(null);
+
+        let halfLen = Math.round(period * 0.5);
+        let sqrtLen = Math.round(Math.sqrt(period));
+        
+        let wmaHalf = WMA(closePrices, halfLen);
+        let wmaFull = WMA(closePrices, period);
+        
+        let diff = new Array(data.length).fill(null);
+        for (let i = 0; i < data.length; i++) {
+            if (wmaHalf[i] !== null && wmaFull[i] !== null) {
+                diff[i] = 2 * wmaHalf[i] - wmaFull[i];
+            }
+        }
+        
+        // 對 diff 再次取 WMA，若 diff 為 null 則結果也應為 null
+        let hmaRaw = WMA(diff, sqrtLen);
+        return hmaRaw;
+    };
+
+    const SMA = (data, period, key = 'close') => {
+        let result = new Array(data.length).fill(null);
+        for (let i = period - 1; i < data.length; i++) {
+            let sum = 0;
+            for (let j = 0; j < period; j++) {
+                const val = key === 'hlc3' ? (data[i-j].y[1] + data[i-j].y[2] + data[i-j].y[3])/3 : data[i-j].y[3];
+                sum += val;
+            }
+            result[i] = parseFloat((sum / period).toFixed(2));
+        }
+        return result;
+    };
+
+    async function fetchYahooData(symbol) {
+        document.getElementById('loader').style.display = 'flex';
+        let clean = symbol.trim().toUpperCase();
+        let queryList = [clean];
+        if (/^\d{3,6}[A-Z]?$/.test(clean)) { queryList = [clean + ".TW", clean + ".TWO"]; }
+
+        const proxies = ["https://corsproxy.io/?", "https://api.allorigins.win/raw?url="];
+        for (let s of queryList) {
+            const url = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${s}?range=${currentRange}&interval=${currentInterval}`);
+            try {
+                const res = await fetch(proxies[0] + url);
+                const json = await res.json();
+                if (json.chart.result) {
+                    const r = json.chart.result[0];
+                    const q = r.indicators.quote[0];
+                    const data = r.timestamp.map((t, i) => ({
+                        x: t * 1000,
+                        y: [q.open[i], q.high[i], q.low[i], q.close[i]].map(v => v ? parseFloat(v.toFixed(2)) : null)
+                    })).filter(d => d.y[3] !== null);
+                    document.getElementById('loader').style.display = 'none';
+                    return data;
+                }
+            } catch (e) { console.warn(`Server trial failed`); }
+        }
+        alert("找不到數據。");
+        document.getElementById('loader').style.display = 'none';
+        return null;
+    }
+
+    function calculateIndicators(data) {
+        if (!data || data.length < 5) return null;
+
+        const auroraRed = [5,6,7,8,9,10].map(p => SMA(data, p, 'close'));
+        const auroraGreen = [11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28].map(p => SMA(data, p, 'hlc3'));
+        
+        // HMA 計算 (加入 null 檢查避免下垂)
+        const hmaFib = [5, 21, 34, 55, 89, 144, 233].map(p => HMA(data, p));
+        const hmaTrad = [5, 10, 20, 60, 120, 240, 300, 360].map(p => HMA(data, p));
+
+        let boxTop = null, boxBottom = null, topIdx = Infinity, bottomIdx = Infinity;
+        for(let i=data.length-2; i>5; i--) {
+            const currentHigh = Math.max(data[i].y[0], data[i].y[3]);
+            const currentLow = Math.min(data[i].y[0], data[i].y[3]);
+            const isPH = currentHigh > Math.max(data[i-1].y[0], data[i-1].y[3]) && currentHigh > Math.max(data[i+1].y[0], data[i+1].y[3]);
+            const isPL = currentLow < Math.min(data[i-1].y[0], data[i-1].y[3]) && currentLow < Math.min(data[i+1].y[0], data[i+1].y[3]);
+            if(!boxTop && isPH) { boxTop = currentHigh; topIdx = i; }
+            if(!boxBottom && isPL) { boxBottom = currentLow; bottomIdx = i; }
+            if(boxTop && boxBottom) break;
+        }
+
+        let maintLine = new Array(data.length).fill(null);
+        let iLow = data[0].y[2], lastHighVal = 0, finalVal = null;
+        for(let i=0; i<data.length; i++) {
+            let p1Range = data.slice(Math.max(0, i-19), i+1);
+            let currentP1High = Math.max(...p1Range.map(d => d.y[1]));
+            if(currentP1High > lastHighVal) iLow = data[i].y[1];
+            else iLow = Math.min(iLow || data[i].y[2], data[i].y[2]);
+            lastHighVal = currentP1High;
+            if(Math.min(...p1Range.map(d => d.y[2])) === iLow) finalVal = iLow;
+            maintLine[i] = finalVal;
+        }
+
+        return { auroraRed, auroraGreen, hmaFib, hmaTrad, boxTop, boxBottom, commonStartIdx: Math.min(topIdx, bottomIdx), maintLine };
+    }
+
+    async function main() {
+        const symbol = document.getElementById('stockInput').value;
+        globalData = await fetchYahooData(symbol);
+        if (!globalData) return;
+        indicatorData = calculateIndicators(globalData);
+        renderChart();
+    }
+
+    function renderChart() {
+        if(!globalData || globalData.length === 0) return;
+        
+        const config = {
+            aurora: document.getElementById('enableAurora').checked,
+            maint: document.getElementById('enableMaint').checked,
+            box: document.getElementById('enableBox').checked,
+            hmaFib: document.getElementById('enableHMAFib').checked,
+            hmaTrad: document.getElementById('enableHMATrad').checked
+        };
+
+        const series = [{ name: 'K線', type: 'candlestick', data: globalData }];
+        const colors = ['#26a69a'];
+        const widths = [1];
+
+        if(indicatorData) {
+            if(config.maint) {
+                series.push({ name: '多方維持線', type: 'line', data: globalData.map((d,i) => ({x: d.x, y: indicatorData.maintLine[i]})) });
+                colors.push('#3b82f6'); widths.push(2);
+            }
+            if(config.aurora) {
+                indicatorData.auroraRed.forEach(d => { series.push({ name: '極光紅', type: 'line', data: globalData.map((v,i) => ({x: v.x, y: d[i]})) }); colors.push('#ef4444'); widths.push(1); });
+                indicatorData.auroraGreen.forEach(d => { series.push({ name: '極光綠', type: 'line', data: globalData.map((v,i) => ({x: v.x, y: d[i]})) }); colors.push('#22c55e'); widths.push(1); });
+            }
+            if(config.hmaFib) {
+                // 青色系配色 (與 K 線區隔)
+                const fibCols = ['#2dd4bf', '#0d9488', '#0891b2', '#0284c7', '#0369a1', '#075985', '#0c4a6e'];
+                indicatorData.hmaFib.forEach((d, idx) => { series.push({ name: 'HMA費式', type: 'line', data: globalData.map((v,i) => ({x: v.x, y: d[i]})) }); colors.push(fibCols[idx]); widths.push(1.5); });
+            }
+            if(config.hmaTrad) {
+                // 紫色系配色
+                const tradCols = ['#c084fc', '#a855f7', '#9333ea', '#7e22ce', '#6b21a8', '#581c87', '#4c1d95', '#2e1065'];
+                indicatorData.hmaTrad.forEach((d, idx) => { series.push({ name: 'HMA傳統', type: 'line', data: globalData.map((v,i) => ({x: v.x, y: d[i]})) }); colors.push(tradCols[idx]); widths.push(1.5); });
+            }
+            if(config.box) {
+                if(indicatorData.boxTop) { series.push({ name: '箱頂線', type: 'line', data: globalData.map((d, i) => ({x: d.x, y: i >= indicatorData.commonStartIdx ? indicatorData.boxTop : null})) }); colors.push('#facc15'); widths.push(2); }
+                if(indicatorData.boxBottom) { series.push({ name: '箱底線', type: 'line', data: globalData.map((d, i) => ({x: d.x, y: i >= indicatorData.commonStartIdx ? indicatorData.boxBottom : null})) }); colors.push('#3b82f6'); widths.push(2); }
+            }
+        }
+
+        const options = {
+            series: series,
+            chart: { height: '100%', type: 'line', foreColor: '#848e9c', animations: { enabled: false }, toolbar: { show: true }, zoom: { type: 'x', enabled: true, autoScaleYaxis: true } },
+            stroke: { width: widths, curve: 'straight', dashArray: series.map(s => (s.name.includes('箱') ? 5 : 0)) },
+            colors: colors,
+            xaxis: { type: 'datetime' },
+            yaxis: { opposite: true, labels: { formatter: v => v?.toFixed(2) } },
+            grid: { borderColor: '#2b2f3a' },
+            tooltip: { 
+                theme: 'dark', shared: true,
+                y: {
+                    formatter: function(val, { seriesIndex, w }) {
+                        const sName = w.config.series[seriesIndex].name;
+                        if (sName.includes('極光') || sName.includes('HMA')) return undefined;
+                        return val !== null ? val.toFixed(2) : null;
+                    }
+                }
+            },
+            legend: { show: false },
+            annotations: {
+                yaxis: (config.box && indicatorData) ? [
+                    { y: indicatorData.boxTop, borderColor: 'transparent', label: { text: `箱頂 ${indicatorData.boxTop}`, position: 'right', style: { color: '#000', background: '#facc15' } } },
+                    { y: indicatorData.boxBottom, borderColor: 'transparent', label: { text: `箱底 ${indicatorData.boxBottom}`, position: 'right', style: { color: '#fff', background: '#3b82f6' } } }
+                ] : []
+            }
+        };
+
+        if (chartInstance) chartInstance.destroy();
+        chartInstance = new ApexCharts(document.querySelector("#chart"), options);
+        chartInstance.render();
+    }
+
+    function changeInterval(int, range, btn) {
+        currentInterval = int; currentRange = range;
+        document.querySelectorAll('#intervalGroup button').forEach(b => b.classList.remove('active-btn'));
+        btn.classList.add('active-btn');
+        main();
+    }
+
+    main();
+</script>
+</body>
+</html>

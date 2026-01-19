@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 投資導航系統</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #1a1d21;
+            --card-bg: #2c2f36;
+            --text-gold: #f4c45f;
+            --text-gray: #a3b1c6;
+            --active-bg: #383c44;
+            --accent-blue: #4a90e2;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: white;
+            font-family: 'Noto Sans TC', sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px; /* 增加寬度以適應網格 */
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            color: white;
+            font-size: 1.8rem;
+            letter-spacing: 3px;
+        }
+
+        /* 分組標題 */
+        .category-title {
+            color: var(--text-gold);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 30px 0 15px 5px;
+            display: flex;
+            align-items: center;
+        }
+
+        .category-title::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: rgba(244, 196, 95, 0.2);
+            margin-left: 15px;
+        }
+
+        /* 網格系統 */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); /* 自動適應欄數 */
+            gap: 15px;
+        }
+
+        .menu-item {
+            background-color: var(--card-bg);
+            text-decoration: none;
+            padding: 18px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .icon {
+            width: 45px;
+            height: 45px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.4rem;
+            margin-right: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .label-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .id-tag {
+            font-size: 0.7rem;
+            color: var(--text-gold);
+            opacity: 0.7;
+            margin-bottom: 2px;
+        }
+
+        .label {
+            color: var(--text-gray);
+            font-size: 1rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        /* 懸停效果 */
+        .menu-item:hover {
+            background-color: var(--active-bg);
+            transform: translateY(-3px); /* 向上微浮，更具現代感 */
+            box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+            border: 1px solid rgba(244, 196, 95, 0.4);
+        }
+
+        .menu-item:hover .icon {
+            background: var(--text-gold);
+            transform: rotate(-5deg) scale(1.1);
+        }
+
+        .menu-item:hover .label {
+            color: white;
+        }
+
+        .menu-item:active {
+            transform: scale(0.98);
+        }
+
+        /* 手機端微調 */
+        @media (max-width: 600px) {
+            .menu-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>AI 投資決策系統</h1>
+        </div>
+
+        <div class="category-title">核心工具</div>
+        <nav class="menu-grid">
+            <a href="01_FiveLines/" class="menu-item">
+                <span class="icon">🎹</span>
+                <div class="label-container">
+                    <span class="id-tag">APP 01</span>
+                    <span class="label">樂活五線譜</span>
+                </div>
+            </a>
+            
+            <a href="02_Dashboard/" class="menu-item">
+                <span class="icon">📊</span>
+                <div class="label-container">
+                    <span class="id-tag">APP 02</span>
+                    <span class="label">個人看盤系統</span>
+                </div>
+            </a>
+        </nav>
+
+        <div class="category-title">分析與觀測</div>
+        <nav class="menu-grid">
+            <a href="03_StockIndicators/" class="menu-item">
+                <span class="icon">🚀</span>
+                <div class="label-container">
+                    <span class="id-tag">APP 03</span>
+                    <span class="label">專業指標系統</span>
+                </div>
+            </a>
+            <a href="04_K-Line/" class="menu-item">
+                <span class="icon">📈</span>
+                <div class="label-container">
+                    <span class="id-tag">APP 04</span>
+                    <span class="label">K線學習系統</span>
+                </div>
+            </a>
+            <a href="05_00981A_MONITOR/" class="menu-item">
+                <span class="icon">🔍</span>
+                <div class="label-container">
+                    <span class="id-tag">APP 05</span>
+                    <span class="label">00981A 觀測站</span>
+                </div>
+            </a>
+        </nav>
+
+        <div class="category-title">數據資源</div>
+        <nav class="menu-grid">
+            <a href="06_Latest_Monthly_Revenue/" class="menu-item">
+                <span class="icon">💰</span>
+                <div class="label-container">
+                    <span class="id-tag">APP 06</span>
+                    <span class="label">台股營收監測</span>
+                </div>
+            </a>
+            <a href="07_OpenAPI/index.html" class="menu-item">
+                <span class="icon">🗃️</span>
+                <div class="label-container">
+                    <span class="id-tag">APP 07</span>
+                    <span class="label">台股資訊觀測</span>
+                </div>
+            </a>
+        </nav>
+    </div>
+
+</body>
+</html>

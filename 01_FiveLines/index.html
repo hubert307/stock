@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股市樂活五線譜 Pro - Dark Mode</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #1a1d21;      /* 深背景 */
+            --card-bg: #2c2f36;      /* 卡片背景 */
+            --accent-gold: #f4c45f;  /* 金色標題/重點 */
+            --text-gray: #a3b1c6;    /* 灰藍色文字 */
+            --input-bg: #1e2126;
+            --btn-active: #3d424a;
+        }
+
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            background: var(--bg-dark); 
+            padding: 20px; 
+            color: var(--text-gray); 
+            margin: 0;
+        }
+
+        .card { 
+            max-width: 1100px; 
+            margin: auto; 
+            background: var(--card-bg); 
+            padding: 30px; 
+            border-radius: 20px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5); 
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 25px; 
+            flex-wrap: wrap; 
+            gap: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 20px;
+        }
+
+        h2 { color: var(--accent-gold); margin: 0; font-size: 1.5rem; }
+
+        .analysis-badge { 
+            padding: 12px 24px; 
+            border-radius: 10px; 
+            font-weight: bold; 
+            font-size: 1.1em; 
+            text-align: center; 
+            min-width: 200px;
+            background: #383c44;
+            color: #fff;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .controls { 
+            display: flex; 
+            gap: 12px; 
+            align-items: center; 
+            margin-bottom: 25px; 
+            flex-wrap: wrap; 
+        }
+
+        input { 
+            padding: 12px 15px; 
+            border: 1px solid #444; 
+            background: var(--input-bg);
+            color: white;
+            border-radius: 10px; 
+            font-size: 16px; 
+            width: 180px; 
+            outline: none; 
+            transition: border 0.3s;
+        }
+
+        input:focus { border-color: var(--accent-gold); }
+
+        button { 
+            padding: 10px 22px; 
+            background: var(--accent-gold); 
+            color: #000; 
+            border: none; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: 700; 
+            transition: 0.3s; 
+        }
+
+        button:hover { background: #ffdf9e; transform: translateY(-1px); }
+
+        .btn-group button { 
+            background: var(--input-bg); 
+            color: var(--text-gray); 
+            border: 1px solid #444;
+            margin-right: 5px; 
+        }
+
+        .btn-group button.active { 
+            background: var(--btn-active); 
+            color: var(--accent-gold); 
+            border-color: var(--accent-gold);
+        }
+
+        #status { font-size: 0.85em; color: var(--accent-gold); opacity: 0.8; margin-top: 5px; }
+
+        .info { 
+            margin-top: 30px; 
+            padding: 20px; 
+            background: rgba(0,0,0,0.2); 
+            border-left: 4px solid var(--accent-gold); 
+            font-size: 0.9em; 
+            line-height: 1.8; 
+            border-radius: 0 12px 12px 0;
+            color: #bcc6d5;
+        }
+
+        /* 信號燈顏色優化 */
+        .signal-buy { background: #2d4a3e; color: #7cfc00; border: 1px solid #3e6b52; }
+        .signal-sell { background: #5a2d2d; color: #ff6b6b; border: 1px solid #7a3a3a; }
+        .signal-neutral { background: #3d424a; color: #a3b1c6; border: 1px solid #555; }
+
+        canvas { background: transparent; padding: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="header">
+        <div>
+            <h2>股市樂活五線譜 Pro</h2>
+            <div id="status">準備就緒</div>
+        </div>
+        <div id="analysisBadge" class="analysis-badge">等待輸入...</div>
+    </div>
+    
+    <div class="controls">
+        <input type="text" id="symbol" value="2330" placeholder="代號 (如 2330)">
+        <button onclick="fetchData()">更新圖表</button>
+        <div class="btn-group">
+            <button onclick="changeRange(3, this)" class="active">3年</button>
+            <button onclick="changeRange(5, this)">5年</button>
+            <button onclick="changeRange(10, this)">10年</button>
+        </div>
+    </div>
+
+    <canvas id="lohasChart"></canvas>
+
+    <div class="info">
+        <strong style="color:var(--accent-gold)">📊 投資判讀指南：</strong><br>
+        1. <strong>五線譜位置</strong>：股價來到最下方的紫色線以下為極端悲觀，通常是長線買點。<br>
+        2. <strong>樂活通道</strong>：當價格觸及通道邊界並出現反轉訊號時，準確度更高。<br>
+        3. <strong>自動代號</strong>：支援台股上市/上櫃/債券 ETF 與美股，程式會自動檢索最佳後綴。
+    </div>
+</div>
+
+<script>
+let myChart = null;
+let currentYears = 3;
+
+// 將圖表顏色定義為變量
+const chartColors = {
+    price: '#f4c45f', // 收盤價用金色
+    plus2sd: '#ff4d4d',
+    plus1sd: '#ff944d',
+    trend: '#4ade80',
+    minus1sd: '#4d94ff',
+    minus2sd: '#a855f7',
+    channel: 'rgba(255, 255, 255, 0.15)'
+};
+
+document.getElementById('symbol').addEventListener('keypress', (e) => { if (e.key === 'Enter') fetchData(); });
+
+function changeRange(years, btn) {
+    currentYears = years;
+    document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    fetchData();
+}
+
+async function fetchData() {
+    let input = document.getElementById('symbol').value.toUpperCase().trim();
+    const status = document.getElementById('status');
+    const badge = document.getElementById('analysisBadge');
+    if(!input) return;
+
+    let symbolsToTry = /^\d/.test(input) ? [input + ".TW", input + ".TWO", input] : [input, input + ".TW"];
+    const end = Math.floor(Date.now() / 1000);
+    const start = end - (currentYears * 365 * 24 * 60 * 60);
+
+    status.innerText = `🔍 搜尋數據中...`;
+    badge.innerText = "讀取中...";
+
+    for (let s of symbolsToTry) {
+        try {
+            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s}?period1=${start}&period2=${end}&interval=1d`;
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+            const res = await fetch(proxyUrl);
+            const json = await res.json();
+            const result = json.chart.result[0];
+            if (!result.timestamp) throw new Error();
+
+            const rawQuotes = result.indicators.quote[0].close;
+            const validData = [], validLabels = [];
+            rawQuotes.forEach((p, i) => {
+                if (p !== null) {
+                    validData.push(p);
+                    const d = new Date(result.timestamp[i] * 1000);
+                    validLabels.push(`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`);
+                }
+            });
+
+            const analysis = calculateAnalysis(validData);
+            updateChart(validLabels, validData, s, analysis);
+            updateAnalysisBadge(validData[validData.length - 1], analysis);
+            status.innerText = `✅ 數據來源: ${s}`;
+            return;
+        } catch (e) { continue; }
+    }
+    status.innerText = `❌ 無法讀取 "${input}"`;
+    badge.innerText = "查無資料";
+}
+
+function calculateAnalysis(data) {
+    const n = data.length;
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (let i = 0; i < n; i++) { sumX += i; sumY += data[i]; sumXY += i * data[i]; sumXX += i * i; }
+    const m = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    const b = (sumY - m * sumX) / n;
+    const trendline = data.map((_, i) => m * i + b);
+    let sumErrorsSq = 0;
+    for (let i = 0; i < n; i++) sumErrorsSq += Math.pow(data[i] - trendline[i], 2);
+    const sd = Math.sqrt(sumErrorsSq / n);
+
+    const upper = [], lower = [];
+    for (let i = 0; i < n; i++) {
+        if (i < 20) { upper.push(null); lower.push(null); continue; }
+        const slice = data.slice(i-20, i);
+        const avg = slice.reduce((a,b)=>a+b)/20;
+        const ssd = Math.sqrt(slice.map(x=>Math.pow(x-avg,2)).reduce((a,b)=>a+b)/20);
+        upper.push(avg + 2*ssd); lower.push(avg - 2*ssd);
+    }
+    return { trendline, sd, upper, lower };
+}
+
+function updateAnalysisBadge(lastPrice, analysis) {
+    const badge = document.getElementById('analysisBadge');
+    const mid = analysis.trendline[analysis.trendline.length-1];
+    const sd = analysis.sd;
+    if (lastPrice <= mid - 2*sd) { badge.innerText = "🎯 極端悲觀 (超賣區)"; badge.className = "analysis-badge signal-buy"; }
+    else if (lastPrice <= mid - sd) { badge.innerText = "📉 相對悲觀"; badge.className = "analysis-badge signal-buy"; }
+    else if (lastPrice >= mid + 2*sd) { badge.innerText = "⚠️ 極端樂觀 (過熱區)"; badge.className = "analysis-badge signal-sell"; }
+    else if (lastPrice >= mid + sd) { badge.innerText = "📈 相對樂觀"; badge.className = "analysis-badge signal-sell"; }
+    else { badge.innerText = "⚖️ 均值附近"; badge.className = "analysis-badge signal-neutral"; }
+}
+
+function updateChart(labels, prices, symbol, analysis) {
+    const ctx = document.getElementById('lohasChart').getContext('2d');
+    if (myChart) myChart.destroy();
+    
+    // 設定 Chart.js 預設字體顏色
+    Chart.defaults.color = '#a3b1c6';
+    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+
+    myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: '股價', data: prices, borderColor: chartColors.price, borderWidth: 2, pointRadius: 0, z: 10 },
+                { label: '+2SD', data: analysis.trendline.map(v => v + 2*analysis.sd), borderColor: chartColors.plus2sd, borderDash: [5,5], pointRadius: 0, borderWidth: 1 },
+                { label: '+1SD', data: analysis.trendline.map(v => v + analysis.sd), borderColor: chartColors.plus1sd, borderDash: [2,2], pointRadius: 0, borderWidth: 1 },
+                { label: '趨勢線', data: analysis.trendline, borderColor: chartColors.trend, borderDash: [3,3], pointRadius: 0, borderWidth: 1 },
+                { label: '-1SD', data: analysis.trendline.map(v => v - analysis.sd), borderColor: chartColors.minus1sd, borderDash: [2,2], pointRadius: 0, borderWidth: 1 },
+                { label: '-2SD', data: analysis.trendline.map(v => v - 2*analysis.sd), borderColor: chartColors.minus2sd, borderDash: [5,5], pointRadius: 0, borderWidth: 1 },
+                { label: '通道上軌', data: analysis.upper, borderColor: chartColors.channel, borderWidth: 1, borderDash: [], pointRadius: 0 },
+                { label: '通道下軌', data: analysis.lower, borderColor: chartColors.channel, borderWidth: 1, borderDash: [], pointRadius: 0 }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            scales: { 
+                y: { 
+                    position: 'right',
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                },
+                x: { 
+                    ticks: { maxTicksLimit: 12 },
+                    grid: { display: false }
+                }
+            },
+            plugins: { 
+                legend: { 
+                    position: 'bottom', 
+                    labels: { boxWidth: 12, padding: 20, font: { size: 12 } } 
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(20, 20, 20, 0.9)',
+                    titleColor: '#f4c45f',
+                    bodySpacing: 5,
+                    padding: 12
+                }
+            }
+        }
+    });
+}
+window.onload = fetchData;
+</script>
+</body>
+</html>
